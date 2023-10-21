@@ -26,12 +26,21 @@ class MyApp extends React.Component {
       audio: false,
       video: true
     }
-    var stream = await navigator.mediaDevices.getUserMedia(constraints)
+    const canvas = document.createElement('canvas');
+    canvas.width = 640;
+    canvas.height = 480;
+
+    var stream = canvas.captureStream(25);  // 25 FPS
+    const dummyVideoTrack = stream.getVideoTracks()[0];
+    pc.addTrack(dummyVideoTrack);
+
+    /*var stream = await navigator.mediaDevices.getUserMedia(constraints)
     this.localVideoRef.current.srcObject = stream;
     stream.getTracks().forEach(track => {
       console.log('add local track')
       pc.addTrack(track, stream);
     })
+    */
     try {
       this.negotiate(pc);
     } catch (e) {
