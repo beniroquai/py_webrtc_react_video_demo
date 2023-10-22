@@ -21,43 +21,28 @@ class MyApp extends React.Component {
 
   async start() {
     this.pc = this.createPeerConnection();
-    var pc = this.pc
-    var constraints = {
-      audio: false,
-      video: true
-    }
-    const canvas = document.createElement('canvas');
-    canvas.width = 640;
-    canvas.height = 480;
+    var pc = this.pc;
 
-    var stream = canvas.captureStream(25);  // 25 FPS
-    const dummyVideoTrack = stream.getVideoTracks()[0];
-    pc.addTrack(dummyVideoTrack);
+    // request an offer from the server
+    var response = await fetch('http://localhost:8080/request-offer', { method: 'POST' });
+    var offer = await response.json();
+    await pc.setRemoteDescription(new RTCSessionDescription(offer));
 
-    /*var stream = await navigator.mediaDevices.getUserMedia(constraints)
-    this.localVideoRef.current.srcObject = stream;
-    stream.getTracks().forEach(track => {
-      console.log('add local track')
-      pc.addTrack(track, stream);
-    })
-    */
-    try {
-      this.negotiate(pc);
-    } catch (e) {
-      alert('Could not acquire media: ' + e);
-    }
-  }
+    var answer = await pc.createAnswer();
+    await pc.setLocalDescription(answer);
 
-  async playVideoFromCamera() {
-    try {
-      const constraints = { 'video': true, 'audio': true };
-      const stream = await navigator.mediaDevices.getUserMedia(constraints);
-      this.remoteVideoRef.current.srcObject = stream;
-    } catch (error) {
-      console.error('Error opening video camera.', error);
-    }
+    const data = {
+      sdp: answer.sdp,
+      type: answer.type
+    };
+    console.log(data);
+    await fetch('http://localhost:8080/answer', {
+        body: JSON.stringify(data),
+        headers: { 'Content-Type': 'application/json' },
+        method: 'POST'
+    });
+}
 
-  }
   async negotiate(pc) {
     var offer = await pc.createOffer()
     await pc.setLocalDescription(offer);
@@ -121,9 +106,6 @@ class MyApp extends React.Component {
     return (
       <div>
           <Row>
-            <Col span={8} offset={4}>
-              <video id="localVideo" autoPlay playsInline controls={true} ref={this.localVideoRef}></video>
-            </Col>
             <Col span={8}>
               <video id="remoteVideo" autoPlay playsInline controls={true} ref={this.remoteVideoRef}></video>
             </Col>

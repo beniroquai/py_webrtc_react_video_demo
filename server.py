@@ -56,6 +56,34 @@ async def javascript(request):
     content = open(os.path.join(ROOT, "client.js"), "r").read()
     return web.Response(content_type="application/javascript", text=content)
 
+async def request_offer(request):
+    pc = RTCPeerConnection()
+    pc_id = "PeerConnection(%s)" % uuid.uuid4()
+    pcs.add(pc)
+
+    # Add your VideoTransformTrack directly
+    pc.addTrack(VideoTransformTrack(relay, transform="rotate"))
+
+    # create offer and send as response
+    offer = await pc.createOffer()
+    await pc.setLocalDescription(offer)
+    return web.Response(
+        content_type="application/json",
+        text=json.dumps({"sdp": pc.localDescription.sdp, "type": pc.localDescription.type})
+    )
+
+async def answer(request):
+    params = await request.json()
+    answer = RTCSessionDescription(sdp=params["sdp"], type=params["type"])
+
+    # Get the pc instance corresponding to this connection from pcs set.
+    # For simplicity, I'm assuming only one pc instance for now. You'll need a mapping based on some session ID or identifier.
+    pc = next(iter(pcs))
+
+    await pc.setRemoteDescription(answer)
+    return web.Response(status=200)
+
+
 
 async def offer(request):
     params = await request.json()
@@ -168,6 +196,10 @@ if __name__ == "__main__":
     app.router.add_get("/", index)
     app.router.add_get("/client.js", javascript)
     app.router.add_post("/offer", offer)
+    # Add these to the app router
+    app.router.add_post("/request-offer", request_offer)
+    app.router.add_post("/answer", answer)
+
 
     cors = aiohttp_cors.setup(app, defaults={
         "*": aiohttp_cors.ResourceOptions(
